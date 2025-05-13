@@ -9,6 +9,9 @@ import (
 
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/spf13/cobra"
+
+	"github.com/d4y3/http-testserver/internal/logger"
+	"github.com/d4y3/http-testserver/internal/middleware"
 )
 
 func init() {
@@ -58,11 +61,13 @@ var serveCmd = &cobra.Command{
 			body = cfg.Server.Response.JSONBody
 		}
 
+		log := logger.New(cmd.OutOrStdout())
+
 		h := buildResponseHandler(cfg.Server.Response.StatusCode, contentType, body)
 
 		srv := http.Server{
 			Addr:    ":" + cfg.Server.Port,
-			Handler: h,
+			Handler: middleware.LoggingMiddleware(log, h),
 		}
 
 		needTLS := cfg.Server.Tls.Cert != "" && cfg.Server.Tls.Key != ""
@@ -84,6 +89,8 @@ var serveCmd = &cobra.Command{
 		errCh := make(chan error)
 
 		go func() {
+			cmd.Printf("listen " + cfg.Server.Port + "\n")
+
 			if needTLS {
 				errCh <- srv.ListenAndServeTLS("", "")
 
